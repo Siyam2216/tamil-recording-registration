@@ -164,6 +164,46 @@
   }
   .notice strong{ color:var(--ink); }
 
+  .toggle-wrap{ margin:30px 0 8px; }
+  .toggle-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:#6b6550;
+    margin-bottom:12px;
+    display:block;
+  }
+  .toggle{
+    display:inline-flex;
+    border:1.5px solid var(--charcoal);
+    border-radius:3px;
+    overflow:hidden;
+    background:var(--paper);
+  }
+  .toggle button{
+    font-family:'Bebas Neue', sans-serif;
+    font-size:17px;
+    letter-spacing:0.02em;
+    padding:12px 28px;
+    border:none;
+    background:transparent;
+    color:var(--ink);
+    cursor:pointer;
+    transition:background 0.25s ease, color 0.25s ease;
+  }
+  .toggle button.active{ background:var(--charcoal); color:var(--amber); }
+  .toggle button:not(.active):hover{ background:rgba(27,28,30,0.06); }
+  .toggle-hint{
+    font-size:13px;
+    color:#7a7458;
+    margin-top:10px;
+    font-style:italic;
+  }
+  .vendor-only{ display:none; }
+  .vendor-only.show{ display:flex; }
+  .vendor-only.show.full{ display:flex; }
+
   form{ margin-top:32px; }
   .field-grid{
     display:grid;
@@ -286,13 +326,22 @@
 
   <main class="form-side">
     <div class="form-header">
-      <div class="kicker">Registration — Recording Contributors</div>
+      <div class="kicker">Registration — Recording Contributors &amp; Vendors</div>
       <h2>Apply to record the Tamil scripts</h2>
       <p>Native Tamil speakers, recording in pairs. Review all scripts fully before recording — interruptions or re-dos that fail QA review won't be paid.</p>
     </div>
 
     <div class="notice">
       <strong>Before you apply:</strong> record in a quiet, noise-free environment — this is our top priority. Familiarize yourself fully with the script content beforehand, and follow the exact file-naming format you'll be given. Failed reviews are unpaid.
+    </div>
+
+    <div class="toggle-wrap">
+      <span class="toggle-label">I'm registering as</span>
+      <div class="toggle" role="tablist" aria-label="Applicant type">
+        <button type="button" id="btnIndividual" class="active" role="tab" aria-selected="true">Individual</button>
+        <button type="button" id="btnVendor" role="tab" aria-selected="false">Vendor / Agency</button>
+      </div>
+      <p class="toggle-hint" id="toggleHint">Applying with your own recording partner.</p>
     </div>
 
     <form id="regForm">
@@ -325,6 +374,17 @@
           <label for="partnerName">Partner's Name <span class="optional-tag">(if already paired)</span></label>
           <input type="text" id="partnerName" name="Partner Name">
         </div>
+
+        <!-- VENDOR-ONLY FIELDS -->
+        <div class="field vendor-only" id="vf-agency">
+          <label for="agencyName">Agency / Vendor Name</label>
+          <input type="text" id="agencyName" name="Agency Name">
+        </div>
+        <div class="field vendor-only" id="vf-pairs">
+          <label for="pairCount">Number of Pairs You Can Provide</label>
+          <input type="number" id="pairCount" name="Pair Count" min="1">
+        </div>
+
         <div class="field full">
           <label for="availability">Availability</label>
           <textarea id="availability" name="Availability" required placeholder="Days/times you and your partner can record (recording takes about 2 hours total)."></textarea>
@@ -369,6 +429,32 @@
     clapTop.classList.add('hit');
   }
 
+  const btnIndividual = document.getElementById('btnIndividual');
+  const btnVendor = document.getElementById('btnVendor');
+  const toggleHint = document.getElementById('toggleHint');
+  const vendorFields = document.querySelectorAll('.vendor-only');
+  let applicantType = 'Individual';
+
+  function setType(type){
+    applicantType = type;
+    const isVendor = type === 'Vendor';
+    btnIndividual.classList.toggle('active', !isVendor);
+    btnVendor.classList.toggle('active', isVendor);
+    btnIndividual.setAttribute('aria-selected', String(!isVendor));
+    btnVendor.setAttribute('aria-selected', String(isVendor));
+
+    vendorFields.forEach(el => el.classList.toggle('show', isVendor));
+    document.getElementById('agencyName').required = isVendor;
+    document.getElementById('pairCount').required = isVendor;
+
+    toggleHint.textContent = isVendor
+      ? "Registering to onboard and manage multiple recording pairs."
+      : "Applying with your own recording partner.";
+  }
+
+  btnIndividual.addEventListener('click', () => setType('Individual'));
+  btnVendor.addEventListener('click', () => setType('Vendor'));
+
   const form = document.getElementById('regForm');
   const submitBtn = document.getElementById('submitBtn');
   const statusMsg = document.getElementById('statusMsg');
@@ -382,12 +468,15 @@
     clapAnim();
 
     const data = {
+      'Applicant Type': applicantType,
       'Full Name': document.getElementById('fullName').value,
       'Email Address': document.getElementById('email').value,
       'WhatsApp Number': document.getElementById('whatsapp').value,
       'Country of Residence': document.getElementById('country').value,
       'Partner Status': document.getElementById('partnerStatus').value,
       'Partner Name': document.getElementById('partnerName').value || '',
+      'Agency Name': document.getElementById('agencyName').value || '',
+      'Pair Count': document.getElementById('pairCount').value || '',
       'Availability': document.getElementById('availability').value,
       'Submitted At': new Date().toISOString()
     };
@@ -412,6 +501,7 @@
       const code = 'TML-' + Date.now().toString(36).toUpperCase();
       refCode.textContent = 'Reference: ' + code;
       form.reset();
+      setType('Individual');
       successPanel.classList.add('show');
       form.style.display = 'none';
     } catch (err) {
